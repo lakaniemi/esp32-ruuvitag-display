@@ -3,6 +3,13 @@ from micropython import const
 
 _IRQ_SCAN_RESULT = const(1 << 4)
 
+def unSign8bit(signed):
+    """Parse signed byte to integer"""
+    if signed & 0x80:
+        return -1 * int(signed & 0x7f)
+
+    return int(signed)
+
 class RuuviTagScanner:
 
     def __init__(self):
@@ -31,7 +38,17 @@ class RuuviTagScanner:
                 # The actual content of the broadcast
                 sensor_data = broadcast_data[7:]
 
-                print('found ruuvitag: ' + address_str + ' with data: ' + str(sensor_data))
+                # RAWv1 = 0x03 (my tags), RAWv2 = 0x05 (new firmware)
+                data_format = sensor_data[0]
+
+                humidity = int(sensor_data[1]) * 0.5
+                temperature = unSign8bit(sensor_data[2]) + int(sensor_data[3]) / 100.0
+                pressure = (int((sensor_data[4] << 8) | sensor_data[5]) + 50000) / 100.0
+
+                print('found ruuvitag: ' + address_str + ' with data format ' +
+                      str(data_format) + ', temp: ' + str(temperature) +
+                      ', humidity: ' + str(humidity) + ' and pressure: ' +
+                      str(pressure))
 
     def start(self):
         self.ble.active(True)
